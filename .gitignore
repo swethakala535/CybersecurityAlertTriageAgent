@@ -1,0 +1,31 @@
+# Python virtual environments
+.venv/
+.venv_old/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Test cache and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local vector database
+chroma_db/
+
+# IDE files
+.vscode/
+
+# Operating system files
+Thumbs.db
+.DS_Store
+# Salesforce local configuration
+.sf/

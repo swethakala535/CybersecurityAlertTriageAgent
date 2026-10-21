@@ -1,0 +1,44 @@
+[
+  {
+    "alert_id": "ALT-001",
+    "severity": "Critical",
+    "classification": "TRUE POSITIVE",
+    "reasoning": "Multiple failed SSH login attempts from an external IP followed by a successful login indicate a potential brute-force attack leading to successful account compromise.",
+    "evidence": [
+      "18 failed SSH logins from external IP 198.51.100.24 in 5 minutes",
+      "Successful login to a user account following the failed attempts",
+      "Target host: server-app-01",
+      "MITRE technique: T1110 (Brute Force)"
+    ],
+    "recommended_action": "Immediately isolate or lock the compromised user account and host server-app-01, terminate active sessions associated with source IP 198.51.100.24, and initiate an incident response investigation.",
+    "alert_type": "brute_force"
+  },
+  {
+    "alert_id": "ALT-002",
+    "severity": "Medium",
+    "classification": "TRUE POSITIVE",
+    "reasoning": "An employee reported a suspicious email with a .iso attachment (MITRE T1566.001 - Phishing: Spearphishing Attachment). The email was delivered to 25 users. While no one has opened it yet, the presence of a weaponized or suspicious attachment distributed across multiple users represents suspicious activity that requires containment and remediation.",
+    "evidence": [
+      "Alert type is phishing (T1566.001)",
+      "Suspicious .iso attachment reported by an employee",
+      "Same email delivered to 25 users",
+      "Source IP: 203.0.113.15"
+    ],
+    "recommended_action": "Quarantine and remove the email from all 25 recipient mailboxes, block the sender IP (203.0.113.15), and analyze the .iso attachment in a sandboxed environment.",
+    "alert_type": "phishing"
+  },
+  {
+    "alert_id": "ALT-003",
+    "severity": "Critical",
+    "classification": "TRUE POSITIVE",
+    "reasoning": "A suspicious executable on host ws-fin-08 renamed 3,200 files to .locked within a span of 2 minutes and dropped a ransom note, which is definitive behavior of a live ransomware attack (MITRE T1486 Data Encrypted for Impact).",
+    "evidence": [
+      "Suspicious executable on employee workstation",
+      "Renamed 3,200 files to .locked in 2 minutes",
+      "Dropped a ransom note",
+      "MITRE Technique T1486"
+    ],
+    "recommended_action": "Isolate host ws-fin-08 from the network immediately, preserve forensic evidence, and initiate incident response procedures for a ransomware outbreak.",
+    "alert_type": "malware"
+  }
+]

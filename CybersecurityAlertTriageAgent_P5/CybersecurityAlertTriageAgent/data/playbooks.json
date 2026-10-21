@@ -1,0 +1,484 @@
+[
+    {
+        "playbook_id": "PB-001",
+        "title": "Brute Force Login Response",
+        "alert_type": "brute_force",
+        "mitre_techniques": [
+            "T1110",
+            "T1110.003",
+            "T1110.004"
+        ],
+        "overview": "Repeated failed authentication against SSH, RDP, VPN, web portals or cloud accounts, including password spraying (many users, few passwords) and credential stuffing. Key question: did the attacker only guess the password (password compromise, blocked by MFA) or get in (account compromise)?",
+        "indicators": [
+            "Spike of failed logins from one IP, or one account hit from many IPs",
+            "Many usernames tried with the same few passwords (spray)",
+            "Success right after a long run of failures",
+            "Low-and-slow attempts under the lockout threshold with very regular timing",
+            "Source IP is a Tor exit node or has a bad reputation; legacy authentication in use"
+        ],
+        "severity_guidance": {
+            "critical": "A login succeeded from the attacking IP, or a privileged/admin/server account was accessed",
+            "high": "High-volume attack on an internet-facing system, no confirmed success yet",
+            "medium": "Moderate failures against a standard account from an external IP",
+            "low": "A few failures from an internal IP that look like mistyped passwords"
+        },
+        "false_positive_checks": [
+            "Source is an internal workstation and the user then logged in normally or reset their password",
+            "Source is an approved scanner or monitoring system",
+            "A service account with an expired password is retrying automatically"
+        ],
+        "steps": [
+            {
+                "action": "Count failed attempts, the time window and the accounts targeted.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Check the source IP reputation (Tor, known attacker, internal vs external).",
+                "tool": "lookup_ip_reputation"
+            },
+            {
+                "action": "Determine whether a successful login followed the failures from the same IP or for the same account.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Identify the pattern: one IP many accounts (spray), many IPs one account, or low-and-slow regular timing.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "If a login succeeded, review the account's activity afterwards: new device or location, new processes, privilege changes, data access.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Check whether MFA is enabled and whether the attacker had the password but failed MFA.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Decide true or false positive and set severity using the severity guidance.",
+                "tool": null
+            },
+            {
+                "action": "Recommend containment (needs approval) and create a ticket with the evidence.",
+                "tool": "create_ticket"
+            }
+        ],
+        "containment_recommendations": [
+            "Block the attacking IP at the firewall (attackers rotate IPs, so monitor for new ones)",
+            "If compromise is suspected: disable the account, reset the password and revoke active sessions",
+            "Enforce MFA, rate limiting and lockout; block legacy authentication"
+        ],
+        "approval_required_for": [
+            "disable_account",
+            "reset_password",
+            "block_ip"
+        ],
+        "escalation_criteria": [
+            "Any login succeeded after the failures",
+            "A privileged, admin or server account is involved",
+            "Suspicious activity continues after the IP is blocked",
+            "Signs of data access or exfiltration"
+        ],
+        "references": [
+            "Microsoft Learn, Password spray investigation: https://learn.microsoft.com/en-us/security/operations/incident-response-playbook-password-spray",
+            "MITRE ATT&CK T1110: https://attack.mitre.org/techniques/T1110/"
+        ]
+    },
+    {
+        "playbook_id": "PB-002",
+        "title": "Phishing Email Response",
+        "alert_type": "phishing",
+        "mitre_techniques": [
+            "T1566",
+            "T1566.001",
+            "T1566.002"
+        ],
+        "overview": "Emails that impersonate a trusted sender to steal credentials or deliver malware. Workflow: confirm the message, scope who received it, check who interacted, look for follow-on activity, then contain.",
+        "indicators": [
+            "Lookalike sender domain, or SPF/DKIM/DMARC failure",
+            "Urgent wording; link text that differs from the real URL",
+            "Risky attachment types (.html, .iso, macro-enabled Office files)",
+            "Same message sent to many recipients, or campaign variants"
+        ],
+        "severity_guidance": {
+            "critical": "Credentials entered by a privileged or finance user and a suspicious sign-in followed",
+            "high": "User clicked the link or opened the attachment",
+            "medium": "Delivered to many users but no interaction found",
+            "low": "Blocked at the gateway, or a known benign sender or internal simulation"
+        },
+        "false_positive_checks": [
+            "SPF, DKIM and DMARC all pass and the sender is a known vendor",
+            "Message headers show an internal phishing simulation",
+            "The domain is on the approved sender list"
+        ],
+        "steps": [
+            {
+                "action": "Review the reported email, headers and attachments; extract the Message-ID, sender and URLs.",
+                "tool": null
+            },
+            {
+                "action": "Check the sender domain and URLs for suspicious indicators.",
+                "tool": "lookup_ip_reputation"
+            },
+            {
+                "action": "Find all recipients and whether the message was delivered, blocked or quarantined.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "For each recipient, determine whether they opened it, clicked a link, opened the attachment or entered credentials.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "If credentials may be exposed, look for new or unusual sign-ins after the click.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "If an attachment was opened, check the endpoint for malware execution.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Decide true or false positive and set severity using the severity guidance.",
+                "tool": null
+            },
+            {
+                "action": "Recommend containment (needs approval) and create a ticket.",
+                "tool": "create_ticket"
+            }
+        ],
+        "containment_recommendations": [
+            "Remove the message from all mailboxes",
+            "Block confirmed malicious senders, domains and URLs (only when the evidence supports it)",
+            "Isolate a suspicious attachment or the affected endpoint",
+            "If credentials were entered: reset the password and revoke sessions; review mailbox rules and forwarding"
+        ],
+        "approval_required_for": [
+            "purge_email",
+            "block_domain",
+            "isolate_host",
+            "reset_password"
+        ],
+        "escalation_criteria": [
+            "Credentials were submitted",
+            "A privileged or finance user is involved",
+            "Phishing is confirmed and widespread (many recipients)",
+            "A suspicious sign-in or malware execution follows the click"
+        ],
+        "references": [
+            "Microsoft Learn, Phishing investigation playbook: https://learn.microsoft.com/en-us/security/zero-trust/security-operations-playbook-phishing",
+            "MITRE ATT&CK T1566: https://attack.mitre.org/techniques/T1566/"
+        ]
+    },
+    {
+        "playbook_id": "PB-003",
+        "title": "Malware Detection Response",
+        "alert_type": "malware",
+        "mitre_techniques": [
+            "T1204",
+            "T1059",
+            "T1486"
+        ],
+        "overview": "AV/EDR alerts about malicious executables, droppers, trojans and ransomware. Ransomware needs the fastest response: stop the spread, preserve evidence, restore from clean backups. Ransomware can also hide an earlier, unresolved compromise.",
+        "indicators": [
+            "File hash flagged malicious on threat intelligence",
+            "Office app or browser spawning PowerShell, cmd or script hosts",
+            "Mass file renaming, new extensions or a ransom note",
+            "Backup or shadow-copy deletion; security tools disabled",
+            "Connections to a known command-and-control destination"
+        ],
+        "severity_guidance": {
+            "critical": "Ransomware activity, or malware on a server or domain controller",
+            "high": "Known-malicious file executed on a workstation or contacting C2",
+            "medium": "Malware quarantined before it executed",
+            "low": "Adware/PUA, or an admin tool flagged by EDR with an approved ticket"
+        },
+        "false_positive_checks": [
+            "Flagged file is a legitimate admin tool used by IT under an approved change ticket",
+            "AV action shows quarantined and executed=false",
+            "The hash is on the approved software list"
+        ],
+        "steps": [
+            {
+                "action": "Review the detection details: affected device, user, file path and AV/EDR action (blocked or allowed).",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Collect the file hash and any contacted IP or domain, and check them against threat intelligence.",
+                "tool": "lookup_ip_reputation"
+            },
+            {
+                "action": "Find the parent process and execution time on the endpoint.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Check whether the same hash or behaviour appears on other hosts.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Look for ransomware signs: mass file changes, backup deletion, ransom note.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Decide true or false positive and set severity using the severity guidance.",
+                "tool": null
+            },
+            {
+                "action": "Recommend isolating the device if compromise is suspected, and request analysis by the security team before any evidence is deleted.",
+                "tool": null
+            },
+            {
+                "action": "Create a ticket with the hash, host and timeline.",
+                "tool": "create_ticket"
+            }
+        ],
+        "containment_recommendations": [
+            "Isolate the affected host from the network (powering off loses evidence in memory; use only if it cannot be disconnected)",
+            "Do not delete the file or wipe the machine until the security team has captured evidence",
+            "Reset credentials used on the host; contain other systems that could give the attacker access",
+            "Do not recommend paying a ransom"
+        ],
+        "approval_required_for": [
+            "isolate_host",
+            "kill_process",
+            "reset_password"
+        ],
+        "escalation_criteria": [
+            "Any ransomware behaviour",
+            "A server or domain controller is affected",
+            "The same malware appears on more than one host",
+            "Signs of data theft or C2 communication"
+        ],
+        "references": [
+            "CISA, #StopRansomware Guide: https://www.cisa.gov/stopransomware/ransomware-guide",
+            "MITRE ATT&CK T1486: https://attack.mitre.org/techniques/T1486/"
+        ]
+    },
+    {
+        "playbook_id": "PB-004",
+        "title": "Suspicious Network Traffic Response",
+        "alert_type": "suspicious_traffic",
+        "mitre_techniques": [
+            "T1071",
+            "T1048",
+            "T1046"
+        ],
+        "overview": "Firewall, IDS or DNS alerts about C2 beaconing, DNS tunnelling, port scans and unusual outbound transfers. Attackers hide C2 inside common protocols (HTTP/S, DNS, mail); inside a network, SMB, SSH and RDP can carry traffic between pivot hosts.",
+        "indicators": [
+            "A common protocol used by an abnormal process, with high outbound bytes or irregular ports",
+            "Fixed-interval connections to a rare destination (beaconing)",
+            "Long, high-entropy DNS queries (possible tunnelling)",
+            "Large off-hours transfer to an unknown external IP",
+            "One host probing many ports or many hosts"
+        ],
+        "severity_guidance": {
+            "critical": "Confirmed C2 or exfiltration from a server holding sensitive data",
+            "high": "Beaconing from a workstation, or a large unexplained outbound transfer",
+            "medium": "External port scan against the perimeter with no sessions established",
+            "low": "Known scanner, or a scheduled job such as a nightly backup"
+        },
+        "false_positive_checks": [
+            "Source is an approved vulnerability scanner inside its scan window",
+            "Traffic matches a scheduled backup or sync job",
+            "Destination is on the approved vendor or cloud allowlist"
+        ],
+        "steps": [
+            {
+                "action": "Review the destination, protocol, ports and volume of the traffic.",
+                "tool": null
+            },
+            {
+                "action": "Check the destination IP or domain reputation.",
+                "tool": "lookup_ip_reputation"
+            },
+            {
+                "action": "Compare with normal behaviour for that asset's role (what protocols and destinations are usual?).",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Search firewall, proxy and endpoint logs for related events: timing, frequency, the process and user behind it.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Check whether the traffic matches an approved job or scanner schedule (false positive).",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Decide true or false positive and set severity using the severity guidance.",
+                "tool": null
+            },
+            {
+                "action": "Recommend blocking only when the malicious activity is sufficiently supported by evidence.",
+                "tool": null
+            },
+            {
+                "action": "Create a ticket with the destination, volume and timeline.",
+                "tool": "create_ticket"
+            }
+        ],
+        "containment_recommendations": [
+            "Block the destination at the firewall and DNS, only with sufficient supporting evidence",
+            "Isolate the source host if C2 or exfiltration is confirmed",
+            "Apply protocol-based egress filtering and IDS/IPS signatures for known malware traffic"
+        ],
+        "approval_required_for": [
+            "block_ip",
+            "block_domain",
+            "isolate_host"
+        ],
+        "escalation_criteria": [
+            "Suspected or confirmed data exfiltration",
+            "Beaconing to a known-bad destination",
+            "Ongoing compromise indicators on the source host",
+            "Sensitive data or a server is involved"
+        ],
+        "references": [
+            "MITRE ATT&CK T1071 (detection strategy DET0444): https://attack.mitre.org/techniques/T1071/",
+            "MITRE ATT&CK T1048: https://attack.mitre.org/techniques/T1048/"
+        ]
+    },
+    {
+        "playbook_id": "PB-005",
+        "title": "Privilege Escalation Response",
+        "alert_type": "privilege_escalation",
+        "mitre_techniques": [
+            "T1548",
+            "T1548.003",
+            "T1068",
+            "T1136",
+            "T1078"
+        ],
+        "overview": "An account or process gains higher rights than intended: abuse of UAC or sudo, a vulnerability exploit, an unapproved admin-group change, or a new admin account. The deciding question is whether a valid, approved change ticket explains it.",
+        "indicators": [
+            "Windows: UAC-bypass registry changes, unusual parent-child processes, unsigned elevated processes",
+            "Linux: real and effective user ID differ, setuid/setgid changes, privileged binaries run by unprivileged users",
+            "Standard user added to Administrators, sudoers or Domain Admins",
+            "New local admin account created outside a change window",
+            "Known exploit tooling or a vulnerable service spawning a root/SYSTEM shell"
+        ],
+        "severity_guidance": {
+            "critical": "Unauthorised user obtains Domain Admin or root",
+            "high": "Unapproved admin/sudo change on a server, or exploit tooling executed",
+            "medium": "Change with a ticket that is still pending approval",
+            "low": "Change matching an approved change ticket"
+        },
+        "false_positive_checks": [
+            "An approved change ticket matches the user, host and time",
+            "An on-call emergency access is documented",
+            "The actor is an authorised IT admin acting inside a maintenance window"
+        ],
+        "steps": [
+            {
+                "action": "Identify who made the change, on which host, from which IP, and when.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Check the change-management ticket: approved, pending or none.",
+                "tool": null
+            },
+            {
+                "action": "Review the account's activity after the change.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Review sudo/audit logs, process trees and registry or group-membership changes around the event.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Check the source IP and the host for known vulnerable software (CVE/CVSS).",
+                "tool": "lookup_ip_reputation"
+            },
+            {
+                "action": "Decide true or false positive and set severity using the severity guidance.",
+                "tool": null
+            },
+            {
+                "action": "Recommend revoking the elevated rights if the change is unauthorised (needs approval).",
+                "tool": null
+            },
+            {
+                "action": "Create a ticket with the change, the actor and the evidence.",
+                "tool": "create_ticket"
+            }
+        ],
+        "containment_recommendations": [
+            "Revoke the elevated rights and disable the account if the change is unauthorised",
+            "Patch the vulnerable software; rotate credentials of affected privileged accounts",
+            "Prevention: highest UAC level, sudo timestamp_timeout 0 with tty_tickets, manual approval for just-in-time elevation"
+        ],
+        "approval_required_for": [
+            "revoke_privileges",
+            "disable_account",
+            "reset_password"
+        ],
+        "escalation_criteria": [
+            "Any unauthorised admin or root access",
+            "A domain-level privilege change",
+            "Exploit tooling executed on a server",
+            "No matching change ticket and no plausible explanation"
+        ],
+        "references": [
+            "MITRE ATT&CK T1548: https://attack.mitre.org/techniques/T1548",
+            "MITRE ATT&CK T1548.003 Sudo and Sudo Caching: https://attack.mitre.org/techniques/T1548/003/"
+        ]
+    },
+    {
+        "playbook_id": "PB-006",
+        "title": "General Alert Triage",
+        "alert_type": "general_triage",
+        "mitre_techniques": [],
+        "overview": "Fallback when the alert type is unclear. Follows the standard incident lifecycle (detect, analyse, contain, eradicate and recover, review) and the SOC flow: classify, investigate, escalate or close.",
+        "indicators": [
+            "Alert does not match any specific alert type",
+            "Mixed or ambiguous indicators"
+        ],
+        "severity_guidance": {
+            "critical": "Active compromise, data loss or ransomware; respond immediately",
+            "high": "Likely true positive with significant impact; respond within 1 hour",
+            "medium": "Suspicious, needs investigation; respond the same day",
+            "low": "Likely benign or informational; review in batch"
+        },
+        "false_positive_checks": [
+            "Source belongs to an approved scanner, backup job or administrator",
+            "A change ticket or maintenance window explains the activity",
+            "The same alert fired before and was closed as benign"
+        ],
+        "steps": [
+            {
+                "action": "Extract indicators: IPs, domains, file hashes, usernames.",
+                "tool": null
+            },
+            {
+                "action": "Check each indicator against threat intelligence.",
+                "tool": "lookup_ip_reputation"
+            },
+            {
+                "action": "Pull related authentication, firewall, web and endpoint logs around the alert time.",
+                "tool": "search_logs"
+            },
+            {
+                "action": "Map the behaviour to a MITRE ATT&CK technique and re-classify into a specific alert type if possible.",
+                "tool": null
+            },
+            {
+                "action": "Decide true or false positive and set severity using the severity guidance.",
+                "tool": null
+            },
+            {
+                "action": "Escalate or close, and create a ticket recording the decision.",
+                "tool": "create_ticket"
+            }
+        ],
+        "containment_recommendations": [
+            "Choose containment based on the re-classified alert type"
+        ],
+        "approval_required_for": [
+            "any_containment_action"
+        ],
+        "escalation_criteria": [
+            "Severity is high or critical",
+            "Evidence shows a successful compromise",
+            "The alert cannot be explained after investigation"
+        ],
+        "references": [
+            "CISA, Incident and Vulnerability Response Playbooks: https://www.cisa.gov/news-events/news/incident-and-vulnerability-response-playbooks",
+            "NIST SP 800-61: https://csrc.nist.gov/pubs/sp/800/61/r2/final"
+        ]
+    }
+]
